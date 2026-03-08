@@ -32,4 +32,15 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  // Generated Prisma client uses @ts-nocheck; type-aware rules can't resolve it
+  {
+    files: ['src/modules/**/*.service.ts', 'src/modules/**/*.repository.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-redundant-type-constituents': 'off',
+    },
+  },
 );
