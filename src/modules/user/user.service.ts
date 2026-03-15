@@ -59,8 +59,15 @@ export class UserService {
   }
 
   async findByEmailForAuth(email: string): Promise<AuthUser | null> {
+    if (!email) return null;
+
     return await this.prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+      },
     });
   }
 
@@ -87,5 +94,22 @@ export class UserService {
       where: { id },
       omit: { password: true },
     });
+  }
+
+  async incrementTokenVersion(userId: number): Promise<number> {
+    const user = await this.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const newTokenVersion = user.tokenVersion + 1;
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { tokenVersion: newTokenVersion },
+    });
+
+    return newTokenVersion;
   }
 }
