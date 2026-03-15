@@ -8,6 +8,12 @@ import { PublicUser, AuthUser } from './user.type';
 import { CacheService } from 'src/common/cache/cache.service';
 import { getUserTokenVersionCacheKey } from 'src/common/constants/cache-keys';
 
+const AUTH_SELECT = {
+  id: true,
+  email: true,
+  password: true,
+}
+
 @Injectable()
 export class UserService {
   constructor(
@@ -56,6 +62,23 @@ export class UserService {
     return user;
   }
 
+  async getByIdForAuth(id: number): Promise<AuthUser> {
+    if (!id) {
+      throw new NotFoundException('User not found');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: AUTH_SELECT,
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
   async findByEmail(email: string): Promise<PublicUser | null> {
     if (!email) return null;
     return await this.prisma.user.findUnique({
@@ -69,11 +92,7 @@ export class UserService {
 
     return await this.prisma.user.findUnique({
       where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-      },
+      select: AUTH_SELECT,
     });
   }
 

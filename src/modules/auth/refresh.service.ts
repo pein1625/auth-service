@@ -31,18 +31,14 @@ export class RefreshService {
   async revokeByToken(token: string): Promise<void> {
     if (!token) return;
 
-    try {
-      const payload = this.jwtService.decode(token);
+    const payload = this.jwtService.decode(token);
 
-      const jti = payload?.jti;
-      if (!jti) {
-        throw new Error('Invalid token: jti not found');
-      }
-
-      await this.revokeById(String(jti));
-    } catch (err) {
-      throw new Error(`Invalid token: ${err.message}`);
+    const jti = payload?.jti;
+    if (!jti) {
+      throw new Error('Invalid token: jti not found');
     }
+
+    await this.revokeById(String(jti));
   }
 
   async revokeById(id: string): Promise<void> {

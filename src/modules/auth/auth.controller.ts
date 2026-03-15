@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { Public } from './decorators/public.decorator';
 import type { AccessTokenPayload } from './auth.type';
 import type { Request, Response } from 'express';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
@@ -20,6 +21,11 @@ const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Get('me')
+  me(@Req() req: Request) {
+    return req.user;
+  }
 
   @Public()
   @Post('register')
@@ -36,17 +42,7 @@ export class AuthController {
     const { accessToken, refreshToken } =
       await this.authService.login(loginDto);
 
-    res.cookie(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: parseInt(process.env.JWT_EXPIRES_IN || '900'),
-    });
-
-    res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: parseInt(process.env.JWT_REFRESH_EXPIRES_IN || '604800'),
-    });
+    this.setAuthCookies(res, accessToken, refreshToken);
 
     return { message: 'Login Successfully', accessToken, refreshToken };
   }
@@ -70,7 +66,7 @@ export class AuthController {
     return { message: 'Logout Successfully' };
   }
 
-  @Post('logout-all-devices')
+  @Post('logout-all')
   async logoutAllDevices(@Req() req: Request) {
     const user = req.user as AccessTokenPayload | undefined;
     const userId: number | undefined = user?.sub ?? 0;
@@ -79,8 +75,52 @@ export class AuthController {
     return { message: 'Logout All Devices Successfully' };
   }
 
-  @Get('me')
-  me(@Req() req: Request) {
-    return req.user;
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const cookies = req.cookies as Record<string, string> | undefined;
+
+    const { accessToken, refreshToken } = await this.authService.refresh(
+      cookies?.refresh_token ?? '',
+    );
+
+    this.setAuthCookies(res, accessToken, refreshToken);
+
+    return { message: 'Refresh Successfully', accessToken, refreshToken };
+  }
+
+  @Post('change-password')
+  async changePassword(
+    @Req() req: Request,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    const user = req.user as AccessTokenPayload | undefined;
+    const userId: number | undefined = user?.sub ?? 0;
+    await this.authService.changePassword(userId, changePasswordDto);
+
+    if (!userId) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    return { message: 'Change Password Successfully' };
+  }
+
+  private setAuthCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ) {
+    res.cookie(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: parseInt(process.env.JWT_EXPIRES_IN || '900'),
+    });
+    res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: parseInt(process.env.JWT_REFRESH_EXPIRES_IN || '604800'),
+    });
   }
 }
