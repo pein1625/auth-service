@@ -4,14 +4,15 @@ import { UserService } from '../user/user.service';
 import { PublicUser } from '../user/user.type';
 import { LoginDto } from './dto/login.dto';
 import { verifyPassword } from 'src/utils/hashing';
-import { JwtService } from '@nestjs/jwt';
-import { RefreshService } from './refresh/refresh.service';
+import { TokenService } from './token.service';
+import { RefreshService } from './refresh.service';
+import { AccessTokenPayload } from './auth.type';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
-    private jwtService: JwtService,
+    private tokenService: TokenService,
     private refreshService: RefreshService,
   ) {}
 
@@ -43,26 +44,22 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const accessToken = this.jwtService.sign(
-      { sub: user.id },
-      {
-        expiresIn: parseInt(process.env.JWT_EXPIRES_IN || '900'),
-      },
-    );
-
+    const accessToken = await this.tokenService.signAccessToken(user.id);
     const refreshToken = await this.refreshService.create(user.id);
 
     return { accessToken, refreshToken };
   }
 
-  async logout(userId: number, refreshToken: string): Promise<void> {
-    if (!userId) return;
-
+  async logout(
+    accessTokenPayload: AccessTokenPayload,
+    refreshToken: string,
+  ): Promise<void> {
+    await this.tokenService.revokeAccessToken(accessTokenPayload);
     await this.refreshService.revokeByToken(refreshToken);
   }
 
   async logoutAllDevices(userId: number): Promise<void> {
-    await this.userService.incrementTokenVersion(userId);
+    await this.tokenService.incrementTokenVersion(userId);
     await this.refreshService.revokeByUserId(userId);
   }
 }

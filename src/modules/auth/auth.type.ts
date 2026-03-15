@@ -1,5 +1,7 @@
 export type AccessTokenPayload = {
   sub: number;
+  jti: string;
+  ver: number;
   iat: number;
   exp: number;
 };

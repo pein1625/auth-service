@@ -5,9 +5,15 @@ import { PrismaService } from 'src/common/prisma/prisma.service';
 import { hashPassword } from 'src/utils/hashing';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { PublicUser, AuthUser } from './user.type';
+import { CacheService } from 'src/common/cache/cache.service';
+import { getUserTokenVersionCacheKey } from 'src/common/constants/cache-keys';
+
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async findMany(dto: PaginationDto): Promise<PublicUser[]> {
     const { page, limit } = dto;
@@ -72,20 +78,24 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<PublicUser> {
-    await this.getById(id);
-    const { email, password, name, avatarUrl } = updateUserDto;
-    const hashedPassword = password ? await hashPassword(password) : undefined;
+    const user = await this.getById(id);
 
-    return await this.prisma.user.update({
-      where: { id },
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        avatarUrl,
-      },
+    if (updateUserDto.password) {
+      updateUserDto.password = await hashPassword(updateUserDto.password);
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: updateUserDto,
       omit: { password: true },
     });
+
+    await this.cache.set(
+      getUserTokenVersionCacheKey(updatedUser.id),
+      updatedUser.tokenVersion.toString(),
+    );
+
+    return updatedUser;
   }
 
   async remove(id: number): Promise<PublicUser> {
@@ -94,22 +104,5 @@ export class UserService {
       where: { id },
       omit: { password: true },
     });
-  }
-
-  async incrementTokenVersion(userId: number): Promise<number> {
-    const user = await this.findById(userId);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const newTokenVersion = user.tokenVersion + 1;
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { tokenVersion: newTokenVersion },
-    });
-
-    return newTokenVersion;
   }
 }

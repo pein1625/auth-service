@@ -48,7 +48,7 @@ export class RefreshService {
   async revokeById(id: string): Promise<void> {
     if (!id) return;
 
-    await this.prisma.refreshToken.delete({
+    await this.prisma.refreshToken.deleteMany({
       where: { id },
     });
   }

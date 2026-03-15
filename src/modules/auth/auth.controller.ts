@@ -52,27 +52,31 @@ export class AuthController {
   }
 
   @Post('logout')
-  logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as AccessTokenPayload | undefined;
-    const userId: number | undefined = user?.sub ?? 0;
-    const cookies = req.cookies as Record<string, string> | undefined;
-    const refreshToken: string = cookies?.refresh_token ?? '';
 
-    if (!userId || !refreshToken) {
+    if (!user) {
       throw new UnauthorizedException('Unauthorized');
     }
+
+    const cookies = req.cookies as Record<string, string> | undefined;
+    const refreshToken: string = cookies?.refresh_token ?? '';
 
     res.clearCookie(ACCESS_TOKEN_COOKIE_NAME);
     res.clearCookie(REFRESH_TOKEN_COOKIE_NAME);
 
-    return this.authService.logout(userId, refreshToken);
+    await this.authService.logout(user, refreshToken);
+
+    return { message: 'Logout Successfully' };
   }
 
   @Post('logout-all-devices')
-  logoutAllDevices(@Req() req: Request) {
+  async logoutAllDevices(@Req() req: Request) {
     const user = req.user as AccessTokenPayload | undefined;
     const userId: number | undefined = user?.sub ?? 0;
-    return this.authService.logoutAllDevices(userId);
+    await this.authService.logoutAllDevices(userId);
+
+    return { message: 'Logout All Devices Successfully' };
   }
 
   @Get('me')

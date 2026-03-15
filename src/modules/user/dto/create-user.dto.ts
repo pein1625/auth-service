@@ -5,6 +5,8 @@ import {
   MaxLength,
   IsEmail,
   Length,
+  IsNumber,
+  Min,
 } from 'class-validator';
 import { IsEmailUnique } from '../decorators/is-email-unique.decorator';
 
@@ -17,7 +19,9 @@ export class CreateUserDto {
 
   @IsNotEmpty({ message: 'Password is required' })
   @IsString({ message: 'Password must be a string' })
-  @Length(8, 100, { message: 'Password must be between 8 and 100 characters long' })
+  @Length(8, 100, {
+    message: 'Password must be between 8 and 100 characters long',
+  })
   password: string;
 
   @IsOptional({ message: 'Name is optional' })
@@ -29,4 +33,9 @@ export class CreateUserDto {
   @IsString({ message: 'Avatar URL must be a string' })
   @MaxLength(255, { message: 'Avatar URL must be less than 255 characters' })
   avatarUrl?: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Token version must be a number' })
+  @Min(0, { message: 'Token version must be greater than 0' })
+  tokenVersion?: number;
 }
